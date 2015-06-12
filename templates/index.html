@@ -1,0 +1,91 @@
+<!doctype html>
+<head>
+<title>Background Sync Test</title>
+<meta name=viewport content="width=device-width, initial-scale=1">
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/oneshot/oneshot_sw.js', { scope: '/oneshot/'}
+  ).then(function(reg) {
+    console.log('Serviceworker: REGISTERED', reg);
+  }).catch(function(err) {
+    console.log('ServiceWorker: NOT REGISTERED', err);
+  });
+}
+
+window.setInterval("onTimer();", 1000);
+
+function onTimer() {
+
+    var online = navigator.onLine;
+    document.getElementById("network").innerHTML = online ? "ONLINE" : "OFFLINE";
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onreadystatechange=function()
+    {
+        if (xmlhttp.readyState==4 && xmlhttp.status==200)
+        {
+            json = JSON.parse(xmlhttp.responseText);
+            msg = json['text'];
+            document.getElementById("last_msg").innerHTML = msg;
+        }
+    }
+    xmlhttp.open("GET", "get", true);
+    xmlhttp.send();
+}
+
+</script>
+
+</head>
+<body>
+
+
+Last post on server:
+
+<div id="last_msg" style="display:inline">
+{{ text }}
+</div>
+
+<br>
+
+Network status:
+<div id="network" style="display:inline">
+</div>
+
+<br><br>
+<input type="text" id="input_box" />
+<input type="submit" value="Post!" onclick="submit();" />
+<script>
+
+function submit() {
+    // Store the data and then upload it
+    var msg = document.getElementById('input_box').value;
+
+    caches.open("outbox")
+        .then( function (cache) {
+            console.log("Writing to cache: " + msg);
+            return cache.put(new Request("to_post"), new Response(msg))
+        })
+        .then( function () {
+            console.log("Done")
+            return navigator.serviceWorker.ready;
+        })
+        .then( function (registration) {
+            console.log("Registering sync")
+            return registration.sync.register();
+        })
+        .then( function() {
+            console.log("Registered!");
+        });
+}
+
+</script>
+
+<br><br>
+<p>
+<small>
+    To use this site, run Chrome canary with the following flags: --enable-service-worker-sync --enable-experimental-web-platform-features
+    </small>
+</p>
+
+</body>
